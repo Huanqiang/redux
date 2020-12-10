@@ -53,5 +53,6 @@ export default function compose(...funcs: Function[]) {
     return funcs[0]
   }
 
+  // 将右边函数的执行结果放入作为左边函数的参数
   return funcs.reduce((a, b) => (...args: any) => a(b(...args)))
 }

@@ -203,6 +203,8 @@ export default function createStore<
       const index = nextListeners.indexOf(listener)
       nextListeners.splice(index, 1)
       // 问题: 这是为什么 currentListeners = null
+      // 是为了避免 Store unsubscribe memory leak
+      // 这里即使 currentListeners = null 后，也不会影响到 dispatch 中的已经被赋值了的listeners
       currentListeners = null
     }
   }
@@ -263,8 +265,9 @@ export default function createStore<
     }
 
     // 通知 listeners
-    // 这里执行 currentListeners = nextListeners 的原因是 将 nextListeners 同步给 currentListeners，
-    // 避免在执行 listeners 的过程中因为 subscribe/unsubscribe 造成的遗漏了待删除的 listener 或多执行了新加入 listener
+    // 这里执行 currentListeners = nextListeners 的原因是 将 nextListeners 同步给 currentListeners
+
+    // nextListeners 才是真正存储 listener， listeners 只是当前 dispatch 中才会使用，currentListeners 是用来避免在执行 listeners 的过程中因为 subscribe/unsubscribe 造成的遗漏了待删除的 listener 或多执行了新加入 listener
     const listeners = (currentListeners = nextListeners)
     for (let i = 0; i < listeners.length; i++) {
       const listener = listeners[i]
