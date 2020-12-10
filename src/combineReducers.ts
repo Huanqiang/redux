@@ -138,8 +138,12 @@ export default function combineReducers<M extends ReducersMapObject>(
   ActionFromReducersMapObject<M>
 >
 export default function combineReducers(reducers: ReducersMapObject) {
+
+  // 获取 reducers 的 key
   const reducerKeys = Object.keys(reducers)
+  // 存储 reducer 方法
   const finalReducers: ReducersMapObject = {}
+  // 过滤 reducer 中的非 function
   for (let i = 0; i < reducerKeys.length; i++) {
     const key = reducerKeys[i]
 
@@ -153,6 +157,12 @@ export default function combineReducers(reducers: ReducersMapObject) {
       finalReducers[key] = reducers[key]
     }
   }
+
+  // 得到了一个真正的 reducer，形如：
+  // {
+  //   reducer1: function1,
+  //   reducer2: function2
+  // }
   const finalReducerKeys = Object.keys(finalReducers)
 
   // This is used to make sure we don't warn about the same
@@ -169,6 +179,7 @@ export default function combineReducers(reducers: ReducersMapObject) {
     shapeAssertionError = e
   }
 
+  // store 中dispatch 里的 currentReducer(currentState, action)
   return function combination(
     state: StateFromReducersMapObject<typeof reducers> = {},
     action: AnyAction
@@ -190,21 +201,30 @@ export default function combineReducers(reducers: ReducersMapObject) {
     }
 
     let hasChanged = false
+    // 下一次的 state
     const nextState: StateFromReducersMapObject<typeof reducers> = {}
+    // 传入的 reducer 
     for (let i = 0; i < finalReducerKeys.length; i++) {
       const key = finalReducerKeys[i]
       const reducer = finalReducers[key]
+      // 获取未 dispatch 时候的state
       const previousStateForKey = state[key]
+      // 通过 reducer 得到新的 state
       const nextStateForKey = reducer(previousStateForKey, action)
       if (typeof nextStateForKey === 'undefined') {
         const errorMessage = getUndefinedStateErrorMessage(key, action)
         throw new Error(errorMessage)
       }
+      
       nextState[key] = nextStateForKey
+      // 记录 state 是否发送了变化
       hasChanged = hasChanged || nextStateForKey !== previousStateForKey
     }
-    hasChanged =
-      hasChanged || finalReducerKeys.length !== Object.keys(state).length
+
+    // 什么时候会发生这段？ finalReducerKeys.length !== Object.keys(state).length 
+    // 担心有人删除或是新增了 state ？？
+    // redux 的 state key 还能被改变？？？
+    hasChanged = hasChanged || finalReducerKeys.length !== Object.keys(state).length
     return hasChanged ? nextState : state
   }
 }

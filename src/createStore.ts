@@ -98,11 +98,12 @@ export default function createStore<
     throw new Error('Expected the reducer to be a function.')
   }
 
-  let currentReducer = reducer
-  let currentState = preloadedState as S
-  let currentListeners: (() => void)[] | null = []
-  let nextListeners = currentListeners
-  let isDispatching = false
+  let currentReducer = reducer                      // reducer 用于更新 state
+  let currentState = preloadedState as S            // 起始状态
+  let currentListeners: (() => void)[] | null = []  // 事件监听器
+  // 这里需要 nextListeners 的原因，因为如只有一个 listeners 的话，如果在执行 listeners 的过程中发生了 subscribe，那么这个 listener 就会被执行（实际上这次dispatch 的时候他不应该被执行，而是放在下一次执行）；同样的，如果在执行 listeners 的过程中发生了 unsubscribe，那么这个listener 就可能被遗漏（实际上它应该被执行）
+  let nextListeners = currentListeners              // TODO: ？
+  let isDispatching = false                         // 只能一个同时进行一次 state 更新
 
   /**
    * This makes a shallow copy of currentListeners so we can use
@@ -122,6 +123,7 @@ export default function createStore<
    *
    * @returns The current state tree of your application.
    */
+  // 返回当前的状态树
   function getState(): S {
     if (isDispatching) {
       throw new Error(
@@ -171,11 +173,16 @@ export default function createStore<
       )
     }
 
+    // 记录某一个 subscribe 是否仍然被订阅，以便后续被取消
+    // 通常在发布订阅模式中，我们会将一个订阅器的状态记录在外部统一控制，其实还是放在内部好！可以充分利用 js 的闭包产生的作用域；
     let isSubscribed = true
 
+    // 在这里执行 ensureCanMutateNextListeners 的原因是，如果 subscribe 发生在 dispatch 执行过程中（触发listeners的过程中）
+    // 那么就需要将新的 listener 放到 currentListeners 副本中，即新的 nextListeners
     ensureCanMutateNextListeners()
     nextListeners.push(listener)
 
+    // 从 nextListeners 中移除 subscribe
     return function unsubscribe() {
       if (!isSubscribed) {
         return
@@ -190,9 +197,12 @@ export default function createStore<
 
       isSubscribed = false
 
+      // 在这里执行 ensureCanMutateNextListeners 的原因是，如果 unsubscribe 发生在 dispatch 执行过程中（触发listeners的过程中）
+      // 那么就需要将这个 listener 放到 currentListeners 副本（新的 nextListeners）删除，保证这次 listeners 的执行是正常的
       ensureCanMutateNextListeners()
       const index = nextListeners.indexOf(listener)
       nextListeners.splice(index, 1)
+      // 问题: 这是为什么 currentListeners = null
       currentListeners = null
     }
   }
@@ -242,12 +252,19 @@ export default function createStore<
     }
 
     try {
+      // 记录开始执行 dispatch
       isDispatching = true
+      // 更改 state，dispatch 同时只能进行一次，以保证state的可靠性
+      // 当执行 dispatch 的时候，reducer 上的每一个函数都会被执行一次
       currentState = currentReducer(currentState, action)
     } finally {
+      // 记录 dispatch 结束
       isDispatching = false
     }
 
+    // 通知 listeners
+    // 这里执行 currentListeners = nextListeners 的原因是 将 nextListeners 同步给 currentListeners，
+    // 避免在执行 listeners 的过程中因为 subscribe/unsubscribe 造成的遗漏了待删除的 listener 或多执行了新加入 listener
     const listeners = (currentListeners = nextListeners)
     for (let i = 0; i < listeners.length; i++) {
       const listener = listeners[i]
