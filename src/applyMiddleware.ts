@@ -74,7 +74,7 @@ export default function applyMiddleware(
 
     const middlewareAPI: MiddlewareAPI = {
       getState: store.getState,
-      dispatch: (action, ...args) => dispatch(action, ...args) // 这里写成方法而不是直接使用dispatch的原因是为了可以动态的使用最新的 dispatch，而非指向上面的初始dispatch函数；
+      dispatch: (action, ...args) => dispatch(action, ...args) // 这里写成方法而不是直接使用dispatch的原因是为了可以动态的使用最新的 dispatch（即下面compose后的dispatch），而非指向上面的初始dispatch函数；
     }
     const chain = middlewares.map(middleware => middleware(middlewareAPI))
     dispatch = compose<typeof dispatch>(...chain)(store.dispatch)
