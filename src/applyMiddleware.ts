@@ -60,10 +60,13 @@ export default function applyMiddleware<Ext, S = any>(
 export default function applyMiddleware(
   ...middlewares: Middleware[]
 ): StoreEnhancer<any> {
+  // 在这里接受了 middleware，并存在 参数中；
+
   return (createStore: StoreEnhancerStoreCreator) => <S, A extends AnyAction>(
     reducer: Reducer<S, A>,
     preloadedState?: PreloadedState<S>
   ) => {
+    // 创建一个 store；
     const store = createStore(reducer, preloadedState)
     let dispatch: Dispatch = () => {
       throw new Error(
